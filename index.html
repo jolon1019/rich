@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2c3e50">
+    <title>大富翁桌游助手</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 启动页面 -->
+        <div id="start-screen" class="screen active">
+            <h1>🎲 大富翁桌游助手</h1>
+            <p class="subtitle">配合实体地图，多人一起玩！</p>
+            
+            <div class="player-setup">
+                <h3>选择玩家数量</h3>
+                <div class="player-count-buttons">
+                    <button class="player-count-btn" data-count="2">2人</button>
+                    <button class="player-count-btn" data-count="3">3人</button>
+                    <button class="player-count-btn active" data-count="4">4人</button>
+                </div>
+                
+                <div class="player-names" id="player-names">
+                </div>
+            </div>
+            
+            <button id="start-game" class="btn primary">开始游戏</button>
+        </div>
+        
+        <!-- 游戏主页面 -->
+        <div id="game-screen" class="screen">
+            <div class="game-header">
+                <div class="turn-indicator" id="turn-indicator">
+                    <span id="current-player-name">玩家1</span> 的回合
+                </div>
+                <button id="menu-btn" class="btn small">菜单</button>
+            </div>
+            
+            <!-- 玩家状态栏 -->
+            <div class="players-status" id="players-status">
+            </div>
+            
+            <!-- 骰子区域 -->
+            <div class="dice-area">
+                <div class="dice" id="dice">
+                    <div class="dice-face" id="dice-face">?</div>
+                </div>
+                <button id="roll-dice" class="btn large">🎲 摇骰子</button>
+            </div>
+            
+            <!-- 当前格子信息 -->
+            <div class="cell-info" id="cell-info">
+                <h3 id="cell-name">起点</h3>
+                <p id="cell-description">游戏开始的地方</p>
+                <div id="cell-actions" class="cell-actions">
+                </div>
+            </div>
+            
+            <!-- 位置输入区域 -->
+            <div class="position-area">
+                <h3>📍 棋盘位置</h3>
+                <div class="grid-input" id="grid-input">
+                </div>
+                <p class="hint">摇骰子后自动移动到对应位置，只有当前位置可购买或建房</p>
+            </div>
+            
+            <!-- 操作按钮 -->
+            <div class="action-buttons">
+                <button id="end-turn" class="btn secondary">结束回合</button>
+            </div>
+        </div>
+        
+        <!-- 菜单弹窗 -->
+        <div id="menu-modal" class="modal">
+            <div class="modal-content">
+                <h2>游戏菜单</h2>
+                <button id="resume-game" class="btn">继续游戏</button>
+                <button id="save-game" class="btn">保存游戏</button>
+                <button id="restart-game" class="btn danger">重新开始</button>
+            </div>
+        </div>
+        
+        <!-- 事件弹窗 -->
+        <div id="event-modal" class="modal">
+            <div class="modal-content">
+                <h2 id="event-title">事件</h2>
+                <p id="event-description">描述</p>
+                <button id="event-confirm" class="btn primary">确定</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
+</body>
+</html>
