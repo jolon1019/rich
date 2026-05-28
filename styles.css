@@ -219,33 +219,103 @@ body {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-.dice {
+.dice-scene {
     width: 100px;
     height: 100px;
+    perspective: 600px;
     margin: 0 auto 20px;
-    background: white;
-    border-radius: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    font-size: 48px;
-    font-weight: bold;
-    color: #2c3e50;
-    transition: transform 0.1s;
 }
 
-.dice.rolling {
-    animation: diceRoll 0.5s ease-out;
+.dice-cube {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transform: translateZ(-50px) rotateX(-20deg) rotateY(25deg);
 }
 
-@keyframes diceRoll {
-    0% { transform: rotate(0deg) scale(1); }
-    25% { transform: rotate(90deg) scale(1.1); }
-    50% { transform: rotate(180deg) scale(1); }
-    75% { transform: rotate(270deg) scale(1.1); }
-    100% { transform: rotate(360deg) scale(1); }
+.dice-cube.rolling {
+    animation: diceRoll3d 0.55s ease-out;
 }
+
+@keyframes diceRoll3d {
+    0%   { transform: translateZ(-50px) rotateX(0deg)   rotateY(0deg); }
+    12%  { transform: translateZ(-50px) rotateX(150deg)  rotateY(100deg); }
+    24%  { transform: translateZ(-50px) rotateX(300deg)  rotateY(200deg); }
+    36%  { transform: translateZ(-50px) rotateX(460deg)  rotateY(310deg); }
+    48%  { transform: translateZ(-50px) rotateX(620deg)  rotateY(420deg); }
+    60%  { transform: translateZ(-50px) rotateX(780deg)  rotateY(520deg); }
+    72%  { transform: translateZ(-50px) rotateX(940deg)  rotateY(630deg); }
+    84%  { transform: translateZ(-50px) rotateX(1100deg) rotateY(740deg); }
+    96%  { transform: translateZ(-50px) rotateX(1260deg) rotateY(850deg); }
+    100% { transform: translateZ(-50px) var(--final-x) var(--final-y); }
+}
+
+.dice-face {
+    position: absolute;
+    width: 96px;
+    height: 96px;
+    left: 2px;
+    top: 2px;
+    background: linear-gradient(145deg, #ffffff, #e8e8e8);
+    border-radius: 16px;
+    border: 2px solid #c8c8c8;
+    box-shadow: inset 0 2px 8px rgba(255,255,255,0.95), inset 0 -2px 8px rgba(0,0,0,0.06);
+}
+
+.dice-face span {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    background: radial-gradient(circle at 35% 35%, #555, #1a1a1a);
+    border-radius: 50%;
+    box-shadow: inset 0 1.5px 3px rgba(0,0,0,0.6), 0 1px 1px rgba(255,255,255,0.4);
+}
+
+/* ===== 六面 3D 定位（标准骰子：对立面之和=7） ===== */
+/* 正面=1点，背面=6点，顶面=2点，底面=5点，右面=3点，左面=4点 */
+
+.face-1 { transform: rotateY(0deg)    translateZ(48px); }   /* 前面：1点 */
+.face-6 { transform: rotateY(180deg)  translateZ(48px); }   /* 后面：6点（对1） */
+.face-2 { transform: rotateX(-90deg)  translateZ(48px); }   /* 顶面：2点 */
+.face-5 { transform: rotateX(90deg)   translateZ(48px); }   /* 底面：5点（对2） */
+.face-3 { transform: rotateY(-90deg)  translateZ(48px); }   /* 右面：3点 */
+.face-4 { transform: rotateY(90deg)   translateZ(48px); }   /* 左面：4点（对3） */
+
+/* ===== 点数布局（绝对定位，精确控制） ===== */
+
+/* 1点 — 正中心 */
+.face-1 span:nth-child(1) { left: 39px; top: 39px; }
+
+/* 2点 — 对角线（左上↘右下） */
+.face-2 span:nth-child(1) { left: 14px; top: 14px; }
+.face-2 span:nth-child(2) { left: 64px; top: 64px; }
+
+/* 3点 — 对角线过中心 */
+.face-3 span:nth-child(1) { left: 14px; top: 14px; }
+.face-3 span:nth-child(2) { left: 39px; top: 39px; }
+.face-3 span:nth-child(3) { left: 64px; top: 64px; }
+
+/* 4点 — 四角 */
+.face-4 span:nth-child(1) { left: 14px; top: 14px; }
+.face-4 span:nth-child(2) { left: 64px; top: 14px; }
+.face-4 span:nth-child(3) { left: 14px; top: 64px; }
+.face-4 span:nth-child(4) { left: 64px; top: 64px; }
+
+/* 5点 — 四角 + 正中心 */
+.face-5 span:nth-child(1) { left: 14px; top: 14px; }
+.face-5 span:nth-child(2) { left: 64px; top: 14px; }
+.face-5 span:nth-child(3) { left: 39px; top: 39px; }
+.face-5 span:nth-child(4) { left: 14px; top: 64px; }
+.face-5 span:nth-child(5) { left: 64px; top: 64px; }
+
+/* 6点 — 两列各三 */
+.face-6 span:nth-child(1) { left: 18px; top: 10px; }
+.face-6 span:nth-child(2) { left: 60px; top: 10px; }
+.face-6 span:nth-child(3) { left: 18px; top: 39px; }
+.face-6 span:nth-child(4) { left: 60px; top: 39px; }
+.face-6 span:nth-child(5) { left: 18px; top: 68px; }
+.face-6 span:nth-child(6) { left: 60px; top: 68px; }
 
 #roll-dice {
     width: 100%;
@@ -280,7 +350,7 @@ body {
 }
 
 .grid-btn {
-    min-height: 60px;
+    min-height: 72px;
     border: 2px solid #ddd;
     border-radius: 8px;
     background: white;
@@ -289,11 +359,69 @@ body {
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 4px;
+    padding: 4px 2px;
     word-break: keep-all;
+    position: relative;
+}
+
+.grid-btn .cell-name {
+    font-size: 9px;
+    line-height: 1.2;
+}
+
+.grid-btn .owner-icon {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    z-index: 5;
+    animation: iconPopIn 0.3s ease-out;
+}
+
+@keyframes iconPopIn {
+    0% { transform: scale(0); }
+    60% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}
+
+/* 玩家棋子 - 显示当前所在位置 */
+.player-markers {
+    display: flex;
+    gap: 2px;
+    margin-top: 2px;
+}
+
+.player-marker {
+    width: 20px;
+    height: 20px;
+    font-size: 13px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1.5px 4px rgba(0,0,0,0.35);
+    z-index: 10;
+    animation: markerBounce 0.35s ease-out;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+@keyframes markerBounce {
+    0% { transform: translateY(-8px) scale(0.5); opacity: 0; }
+    60% { transform: translateY(2px) scale(1.15); }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 .grid-btn:hover {

@@ -1,3 +1,97 @@
+// 音效管理器 - 真实骰子音效
+const SoundManager = {
+    ctx: null,
+    _noiseBuffer: null,
+
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+        if (!this._noiseBuffer) {
+            this._noiseBuffer = this._createNoiseBuffer();
+        }
+    },
+
+    _createNoiseBuffer() {
+        const size = this.ctx.sampleRate * 0.5;
+        const buffer = this.ctx.createBuffer(1, size, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < size; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        return buffer;
+    },
+
+    playDiceTick() {
+        this.init();
+        const now = this.ctx.currentTime;
+
+        const src = this.ctx.createBufferSource();
+        src.buffer = this._noiseBuffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 2000 + Math.random() * 3000;
+        filter.Q.value = 1 + Math.random() * 3;
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.12 + Math.random() * 0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        src.start(now);
+        src.stop(now + 0.04);
+    },
+
+    playDiceResult() {
+        this.init();
+        const now = this.ctx.currentTime;
+
+        for (let i = 0; i < 5; i++) {
+            const delay = now + i * 0.04;
+            const src = this.ctx.createBufferSource();
+            src.buffer = this._noiseBuffer;
+
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = 1500 - i * 200;
+            filter.Q.value = 2;
+
+            const gain = this.ctx.createGain();
+            const vol = 0.18 - i * 0.03;
+            gain.gain.setValueAtTime(vol, delay);
+            gain.gain.exponentialRampToValueAtTime(0.001, delay + 0.06);
+
+            src.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+            src.start(delay);
+            src.stop(delay + 0.06);
+        }
+
+        const thudOsc = this.ctx.createOscillator();
+        const thudGain = this.ctx.createGain();
+        const thudFilter = this.ctx.createBiquadFilter();
+        thudFilter.type = 'lowpass';
+        thudFilter.frequency.value = 400;
+        thudOsc.type = 'sine';
+        thudOsc.frequency.setValueAtTime(120, now + 0.18);
+        thudOsc.frequency.exponentialRampToValueAtTime(60, now + 0.35);
+        thudGain.gain.setValueAtTime(0.25, now + 0.18);
+        thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        thudOsc.connect(thudFilter);
+        thudFilter.connect(thudGain);
+        thudGain.connect(this.ctx.destination);
+        thudOsc.start(now + 0.18);
+        thudOsc.stop(now + 0.4);
+    }
+};
+
 // 游戏数据
 const CELL_TYPES = {
     START: 'start',
@@ -14,38 +108,38 @@ const CELL_TYPES = {
 
 // 现代风格地图配置（32格）
 const BOARD_CELLS = [
-    { id: 0, type: CELL_TYPES.START, name: 'GO起点', description: '经过起点获得2000元' },
-    { id: 1, type: CELL_TYPES.PROPERTY, name: '老城街区', price: 600, rent: 50, color: '#e74c3c' },
-    { id: 2, type: CELL_TYPES.PROPERTY, name: '河畔小区', price: 600, rent: 50, color: '#e74c3c' },
+    { id: 0, type: CELL_TYPES.START, name: '北京', description: '经过起点获得2000元' },
+    { id: 1, type: CELL_TYPES.PROPERTY, name: '天津', price: 600, rent: 50, color: '#e74c3c' },
+    { id: 2, type: CELL_TYPES.PROPERTY, name: '石家庄', price: 600, rent: 50, color: '#e74c3c' },
     { id: 3, type: CELL_TYPES.CHANCE, name: '?机会', description: '随机事件！' },
-    { id: 4, type: CELL_TYPES.PROPERTY, name: '市中心广场', price: 1000, rent: 80, color: '#e74c3c' },
-    { id: 5, type: CELL_TYPES.STATION, name: '中央车站', price: 2000, rent: 200 },
-    { id: 6, type: CELL_TYPES.PROPERTY, name: '科技园', price: 1000, rent: 80, color: '#3498db' },
+    { id: 4, type: CELL_TYPES.PROPERTY, name: '太原', price: 1000, rent: 80, color: '#e74c3c' },
+    { id: 5, type: CELL_TYPES.STATION, name: '北京南站', price: 2000, rent: 200 },
+    { id: 6, type: CELL_TYPES.PROPERTY, name: '济南', price: 1000, rent: 80, color: '#3498db' },
     { id: 7, type: CELL_TYPES.COMMUNITY, name: '⚙️公共基金', description: '公共事件！' },
-    { id: 8, type: CELL_TYPES.PROPERTY, name: '文创园区', price: 1200, rent: 100, color: '#3498db' },
-    { id: 9, type: CELL_TYPES.PROPERTY, name: '艺术区', price: 1400, rent: 120, color: '#3498db' },
+    { id: 8, type: CELL_TYPES.PROPERTY, name: '青岛', price: 1200, rent: 100, color: '#3498db' },
+    { id: 9, type: CELL_TYPES.PROPERTY, name: '南京', price: 1400, rent: 120, color: '#3498db' },
     { id: 10, type: CELL_TYPES.JAIL, name: '🛑监狱', description: '探监或服刑中' },
-    { id: 11, type: CELL_TYPES.PROPERTY, name: '美食街', price: 1400, rent: 120, color: '#f1c40f' },
+    { id: 11, type: CELL_TYPES.PROPERTY, name: '上海', price: 1400, rent: 120, color: '#f1c40f' },
     { id: 12, type: CELL_TYPES.UTILITY, name: '🔌电力公司', price: 1500, rent: 150 },
-    { id: 13, type: CELL_TYPES.PROPERTY, name: '购物商城', price: 1600, rent: 140, color: '#f1c40f' },
-    { id: 14, type: CELL_TYPES.PROPERTY, name: '娱乐中心', price: 1800, rent: 160, color: '#f1c40f' },
-    { id: 15, type: CELL_TYPES.STATION, name: '🚄高铁站', price: 2000, rent: 200 },
-    { id: 16, type: CELL_TYPES.PROPERTY, name: '度假村', price: 1800, rent: 160, color: '#2ecc71' },
+    { id: 13, type: CELL_TYPES.PROPERTY, name: '杭州', price: 1600, rent: 140, color: '#f1c40f' },
+    { id: 14, type: CELL_TYPES.PROPERTY, name: '宁波', price: 1800, rent: 160, color: '#f1c40f' },
+    { id: 15, type: CELL_TYPES.STATION, name: '上海虹桥站', price: 2000, rent: 200 },
+    { id: 16, type: CELL_TYPES.PROPERTY, name: '福州', price: 1800, rent: 160, color: '#2ecc71' },
     { id: 17, type: CELL_TYPES.CHANCE, name: '?机会', description: '随机事件！' },
-    { id: 18, type: CELL_TYPES.PROPERTY, name: '高尔夫球场', price: 2000, rent: 180, color: '#2ecc71' },
-    { id: 19, type: CELL_TYPES.PROPERTY, name: '游艇码头', price: 2200, rent: 200, color: '#2ecc71' },
+    { id: 18, type: CELL_TYPES.PROPERTY, name: '厦门', price: 2000, rent: 180, color: '#2ecc71' },
+    { id: 19, type: CELL_TYPES.PROPERTY, name: '广州', price: 2200, rent: 200, color: '#2ecc71' },
     { id: 20, type: CELL_TYPES.FREE_PARKING, name: '🅿️免费停车', description: '休息一下~' },
-    { id: 21, type: CELL_TYPES.PROPERTY, name: '金融街', price: 2200, rent: 200, color: '#9b59b6' },
-    { id: 22, type: CELL_TYPES.PROPERTY, name: '证券中心', price: 2400, rent: 220, color: '#9b59b6' },
+    { id: 21, type: CELL_TYPES.PROPERTY, name: '深圳', price: 2200, rent: 200, color: '#9b59b6' },
+    { id: 22, type: CELL_TYPES.PROPERTY, name: '珠海', price: 2400, rent: 220, color: '#9b59b6' },
     { id: 23, type: CELL_TYPES.COMMUNITY, name: '⚙️公共基金', description: '公共事件！' },
-    { id: 24, type: CELL_TYPES.PROPERTY, name: '总部大厦', price: 2600, rent: 240, color: '#9b59b6' },
-    { id: 25, type: CELL_TYPES.STATION, name: '✈️国际机场', price: 2000, rent: 200 },
-    { id: 26, type: CELL_TYPES.PROPERTY, name: '别墅区', price: 2600, rent: 240, color: '#e67e22' },
-    { id: 27, type: CELL_TYPES.PROPERTY, name: '豪华庄园', price: 2800, rent: 260, color: '#e67e22' },
+    { id: 24, type: CELL_TYPES.PROPERTY, name: '成都', price: 2600, rent: 240, color: '#9b59b6' },
+    { id: 25, type: CELL_TYPES.STATION, name: '广州白云机场', price: 2000, rent: 200 },
+    { id: 26, type: CELL_TYPES.PROPERTY, name: '重庆', price: 2600, rent: 240, color: '#e67e22' },
+    { id: 27, type: CELL_TYPES.PROPERTY, name: '西安', price: 2800, rent: 260, color: '#e67e22' },
     { id: 28, type: CELL_TYPES.UTILITY, name: '💧自来水厂', price: 1500, rent: 150 },
-    { id: 29, type: CELL_TYPES.PROPERTY, name: '🏰城堡酒店', price: 4000, rent: 400, color: '#e67e22' },
+    { id: 29, type: CELL_TYPES.PROPERTY, name: '香港', price: 4000, rent: 400, color: '#e67e22' },
     { id: 30, type: CELL_TYPES.GO_TO_JAIL, name: '⛔进监狱', description: '去监狱待3回合！' },
-    { id: 31, type: CELL_TYPES.PROPERTY, name: '🌆摩天大楼', price: 3500, rent: 350, color: '#1abc9c' }
+    { id: 31, type: CELL_TYPES.PROPERTY, name: '澳门', price: 3500, rent: 350, color: '#1abc9c' }
 ];
 
 // 随机事件
@@ -89,7 +183,6 @@ const elements = {
     playersStatusContainer: document.getElementById('players-status'),
     gridInput: document.getElementById('grid-input'),
     dice: document.getElementById('dice'),
-    diceFace: document.getElementById('dice-face'),
     rollDiceBtn: document.getElementById('roll-dice'),
     endTurnBtn: document.getElementById('end-turn'),
     currentPlayerName: document.getElementById('current-player-name'),
@@ -105,6 +198,7 @@ const elements = {
 // 玩家默认名称
 const defaultNames = ['孙小美', '钱夫人', '阿土伯', '金贝贝'];
 const playerColors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71'];
+const playerIcons = ['👩', '👸', '👴', '👧'];
 
 // 初始化
 function init() {
@@ -134,7 +228,7 @@ function generatePlayerInputs(count) {
         const div = document.createElement('div');
         div.className = 'player-name-input';
         div.innerHTML = `
-            <label style="color: ${playerColors[i]}">玩家${i + 1}</label>
+            <label style="color: ${playerColors[i]}">${playerIcons[i]} 玩家${i + 1}</label>
             <input type="text" id="player-name-${i}" value="${defaultNames[i]}" maxlength="10">
         `;
         elements.playerNamesContainer.appendChild(div);
@@ -163,6 +257,7 @@ function startGame() {
         gameState.players.push({
             id: i,
             name: nameInput.value || defaultNames[i],
+            icon: playerIcons[i],
             money: 10000,
             position: 0,
             properties: [],
@@ -184,6 +279,40 @@ function startGame() {
     saveGame();
 }
 
+function buildCellContent(cell, index) {
+    const btn = elements.gridInput.children[index];
+    if (!btn) return;
+
+    let html = `<span class="cell-name">${cell.name}</span>`;
+
+    if (cell.owner !== undefined) {
+        const owner = gameState.players.find(p => p.id === cell.owner);
+        if (owner) {
+            btn.style.backgroundColor = playerColors[owner.id] || '#ccc';
+            btn.style.color = 'white';
+            html += `<span class="owner-icon" style="border:2px solid ${playerColors[owner.id]}">${owner.icon}</span>`;
+        }
+    } else {
+        btn.style.backgroundColor = '';
+        btn.style.color = '';
+    }
+
+    if (cell.hasHouse) {
+        html += '<span style="font-size:10px;margin-top:1px;">🏠</span>';
+    }
+
+    const playersHere = gameState.players.filter(p => p.position === index);
+    if (playersHere.length > 0) {
+        html += '<div class="player-markers">';
+        playersHere.forEach(p => {
+            html += `<span class="player-marker" style="background:${playerColors[p.id]};border:2px solid rgba(255,255,255,0.8);">${p.icon}</span>`;
+        });
+        html += '</div>';
+    }
+
+    btn.innerHTML = html;
+}
+
 // 生成位置选择网格
 function generateGridInput() {
     elements.gridInput.innerHTML = '';
@@ -191,27 +320,16 @@ function generateGridInput() {
         const btn = document.createElement('button');
         btn.className = 'grid-btn';
         const cell = BOARD_CELLS[i];
-        
-        // 设置颜色边框
+
         if (cell.color) {
             btn.style.borderColor = cell.color;
             btn.style.borderWidth = '3px';
         }
-        
-        // 如果有拥有者，显示小标记
-        let ownerMark = '';
-        if (cell.owner !== undefined) {
-            const owner = gameState.players.find(p => p.id === cell.owner);
-            if (owner) {
-                btn.style.backgroundColor = playerColors[owner.id] || '#ccc';
-                btn.style.color = 'white';
-            }
-        }
-        
+
         btn.title = cell.name;
-        btn.innerHTML = `<span style="font-size:8px;line-height:1.2">${cell.name}</span>`;
         btn.addEventListener('click', () => selectCell(i));
         elements.gridInput.appendChild(btn);
+        buildCellContent(cell, i);
     }
 }
 
@@ -242,7 +360,7 @@ function showCellInfo(cellIndex) {
     if (cell.owner !== undefined) {
         const owner = gameState.players.find(p => p.id === cell.owner);
         if (owner) {
-            desc = `🏠 已被 ${owner.name} 拥有${cell.hasHouse ? ' (有房子)' : ''}`;
+            desc = `${owner.icon} 已被 ${owner.name} 拥有${cell.hasHouse ? ' (🏠有房子)' : ''}`;
         }
     } else if (cell.type === CELL_TYPES.PROPERTY || cell.type === CELL_TYPES.STATION || cell.type === CELL_TYPES.UTILITY) {
         desc = `💰 售价: ${cell.price}元`;
@@ -260,32 +378,65 @@ function showCellInfo(cellIndex) {
     }
 }
 
+// 显示骰子面（3D旋转到对应数字）
+// 六面定位：正面=1, 背面=6, 顶面=2, 底面=5, 右面=3, 左面=4
+const DICE_ROTATIONS = {
+    1: { x: '0deg',    y: '0deg'    },
+    2: { x: '90deg',   y: '0deg'    },
+    3: { x: '0deg',    y: '90deg'   },
+    4: { x: '0deg',    y: '-90deg'  },
+    5: { x: '-90deg',  y: '0deg'    },
+    6: { x: '0deg',    y: '-180deg' }
+};
+
+function showDiceFace(value) {
+    const rot = DICE_ROTATIONS[value];
+    elements.dice.style.setProperty('--final-x', `rotateX(${rot.x})`);
+    elements.dice.style.setProperty('--final-y', `rotateY(${rot.y})`);
+    elements.dice.dataset.face = value;
+}
+
+function setDiceFaceDirect(value) {
+    const rot = DICE_ROTATIONS[value];
+    elements.dice.style.transform = `translateZ(-50px) rotateX(${rot.x}) rotateY(${rot.y})`;
+    elements.dice.dataset.face = value;
+}
+
+function setDiceRandomFace() {
+    const v = Math.floor(Math.random() * 6) + 1;
+    const rot = DICE_ROTATIONS[v];
+    elements.dice.style.transform = `translateZ(-50px) rotateX(${rot.x}) rotateY(${rot.y})`;
+    return v;
+}
+
 // 摇骰子
 function rollDice() {
     if (gameState.diceRolled) return;
-    
+
+    elements.dice.dataset.step = 0;
     elements.dice.classList.add('rolling');
     elements.rollDiceBtn.disabled = true;
-    
+
     let rollCount = 0;
     const rollInterval = setInterval(() => {
-        const tempValue = Math.floor(Math.random() * 6) + 1;
-        elements.diceFace.textContent = tempValue;
+        setDiceRandomFace();
+        SoundManager.playDiceTick();
         rollCount++;
         if (rollCount >= 10) {
             clearInterval(rollInterval);
             finishRoll();
         }
     }, 50);
-    
+
     function finishRoll() {
-        const value = Math.floor(Math.random() * 6) + 1;
-        elements.diceFace.textContent = value;
+        const diceValue = Math.floor(Math.random() * 6) + 1;
         elements.dice.classList.remove('rolling');
+        setDiceFaceDirect(diceValue);
+        SoundManager.playDiceResult();
         gameState.diceRolled = true;
-        
+
         const player = gameState.players[gameState.currentPlayerIndex];
-        
+
         if (player.inJail) {
             player.jailTurns--;
             if (player.jailTurns <= 0) {
@@ -298,51 +449,46 @@ function rollDice() {
                 return;
             }
         }
-        
-        // 播放移动动画
-        const startPosition = player.position;
-        let steps = value;
-        let currentStep = 0;
-        
+
+        const fromPos = player.position;
+
         const moveInterval = setInterval(() => {
-            const currentPos = (startPosition + currentStep) % 32;
-            
-            // 高亮当前格子
-            document.querySelectorAll('.grid-btn').forEach((btn, idx) => {
-                btn.classList.toggle('move-highlight', idx === currentPos);
-                btn.classList.remove('selected');
+            const step = parseInt(elements.dice.dataset.step || 0) + 1;
+            elements.dice.dataset.step = step;
+
+            const movedTo = (fromPos + step) % 32;
+            player.position = movedTo;
+
+            updateGridButtons();
+
+            document.querySelectorAll('.grid-btn').forEach((btn) => {
+                btn.classList.remove('move-highlight');
             });
-            
-            currentStep++;
-            
-            if (currentStep > steps) {
+            elements.gridInput.children[movedTo]?.classList.add('move-highlight');
+
+            if (step >= diceValue) {
                 clearInterval(moveInterval);
-                
-                // 计算最终位置
-                let newPosition = (startPosition + steps) % 32;
-                let passedStart = startPosition + steps >= 32;
-                
+                elements.dice.dataset.step = 0;
+
+                let passedStart = fromPos + diceValue >= 32;
+
                 if (passedStart) {
                     player.money += 2000;
                     showEvent('经过起点', '获得2000元！');
                 }
-                
-                player.position = newPosition;
-                
-                // 如果停在自己的地块且是新购买的，清除新购买标记
-                const newCell = BOARD_CELLS[newPosition];
+
+                const newCell = BOARD_CELLS[movedTo];
                 if (newCell.owner === player.id && newCell.newlyPurchased) {
                     newCell.newlyPurchased = false;
                 }
-                
-                // 选中最终位置
+
                 document.querySelectorAll('.grid-btn').forEach((btn, idx) => {
                     btn.classList.remove('move-highlight');
-                    btn.classList.toggle('selected', idx === newPosition);
+                    btn.classList.toggle('selected', idx === movedTo);
                 });
-                
+
                 updateUI();
-                handleCellEvent(newPosition);
+                handleCellEvent(movedTo);
             }
         }, 200);
     }
@@ -360,7 +506,7 @@ function handleCellEvent(cellIndex) {
     if (cell.owner !== undefined) {
         const owner = gameState.players.find(p => p.id === cell.owner);
         if (owner) {
-            desc = `🏠 已被 ${owner.name} 拥有${cell.hasHouse ? ' (有房子)' : ''}`;
+            desc = `${owner.icon} 已被 ${owner.name} 拥有${cell.hasHouse ? ' (🏠有房子)' : ''}`;
         }
     } else if (cell.type === CELL_TYPES.PROPERTY || cell.type === CELL_TYPES.STATION || cell.type === CELL_TYPES.UTILITY) {
         desc = `💰 售价: ${cell.price}元`;
@@ -409,7 +555,7 @@ function handlePropertyCell(cell, player) {
             const rent = calculateRent(cell);
             player.money -= rent;
             gameState.players[cell.owner].money += rent;
-            showEvent('支付租金', `向${gameState.players[cell.owner].name}支付${rent}元`);
+            showEvent('支付租金', `向${gameState.players[cell.owner].icon} ${gameState.players[cell.owner].name}支付${rent}元`);
         } else {
             // 自己的地
             if (cell.hasHouse) {
@@ -419,7 +565,7 @@ function handlePropertyCell(cell, player) {
                 infoDiv.style.backgroundColor = '#e8f5e9';
                 infoDiv.style.borderRadius = '8px';
                 infoDiv.style.color = '#2e7d32';
-                infoDiv.textContent = '✅ 已有房产，坐等收租！';
+                infoDiv.textContent = `${player.icon} 已有房产，坐等收租！`;
                 elements.cellActions.appendChild(infoDiv);
             } else if (cell.newlyPurchased) {
                 // 刚购买，还需要再来一次才能建房
@@ -475,7 +621,7 @@ function buyProperty(cell) {
         player.properties.push(cell.id);
         cell.owner = player.id;
         cell.newlyPurchased = true; // 标记为新购买
-        showEvent('购买成功', `成功购买${cell.name}！下次经过可建房`);
+        showEvent('购买成功', `${player.icon} 成功购买${cell.name}！下次经过可建房`);
         updateCellDisplay(cell);
         updateUI();
         saveGame();
@@ -490,7 +636,7 @@ function buildHouse(cell) {
     if (player.money >= cell.price) {
         player.money -= cell.price;
         cell.hasHouse = true;
-        showEvent('建房成功', `在${cell.name}盖了房子！`);
+        showEvent('建房成功', `${player.icon} 在${cell.name}盖了房子！`);
         updateCellDisplay(cell);
         updateUI();
         saveGame();
@@ -569,9 +715,9 @@ function checkBankruptcy() {
             }
             
             if (gameState.players.length === 1) {
-                showEvent('游戏结束', `${gameState.players[0].name}获胜！`);
+                showEvent('游戏结束', `${gameState.players[0].icon} ${gameState.players[0].name}获胜！`);
             } else {
-                showEvent('破产', `${bankruptPlayer.name}破产了！`);
+                showEvent('破产', `${bankruptPlayer.icon} ${bankruptPlayer.name}破产了！`);
             }
             
             updateUI();
@@ -612,23 +758,7 @@ function updateUI() {
 
 // 更新格子按钮显示
 function updateGridButtons() {
-    const buttons = elements.gridInput.querySelectorAll('.grid-btn');
-    buttons.forEach((btn, i) => {
-        const cell = BOARD_CELLS[i];
-        
-        // 重置
-        btn.style.backgroundColor = '';
-        btn.style.color = '';
-        
-        // 如果有拥有者，显示颜色
-        if (cell.owner !== undefined) {
-            const owner = gameState.players.find(p => p.id === cell.owner);
-            if (owner) {
-                btn.style.backgroundColor = playerColors[owner.id] || '#ccc';
-                btn.style.color = 'white';
-            }
-        }
-    });
+    BOARD_CELLS.forEach((cell, i) => buildCellContent(cell, i));
 }
 
 // 更新玩家状态
@@ -640,14 +770,14 @@ function updatePlayersStatus() {
     div.className = `player-card player-color-${gameState.currentPlayerIndex}`;
     
     div.innerHTML = `
-        <div style="font-size:18px;font-weight:bold;margin-bottom:8px;">🎯 ${currentPlayer.name} 的回合</div>
+        <div style="font-size:18px;font-weight:bold;margin-bottom:8px;">${currentPlayer.icon} ${currentPlayer.name} 的回合</div>
         <div class="money" style="font-size:24px;">${currentPlayer.money}元</div>
         <div class="properties">🏠 ${currentPlayer.properties.length}处地产${currentPlayer.inJail ? ' | 🔒 监狱中' : ''}</div>
         <div style="margin-top:10px;font-size:12px;color:#666;">
             其他玩家：
             ${gameState.players.map((p, i) => {
                 if (i !== gameState.currentPlayerIndex) {
-                    return `<span style="color:${playerColors[i]}">${p.name}(${p.money})</span>`;
+                    return `<span style="color:${playerColors[i]}">${p.icon} ${p.name}(${p.money})</span>`;
                 }
                 return '';
             }).join(' | ')}
