@@ -869,50 +869,62 @@ function handlePropertyCell(cell, player) {
 
 // 处理车站格子
 function handleStationCell(cell, player) {
+    if (cell.owner !== undefined) {
+        // 已购买的车站，直接传送
+        transportToCity(cell, player);
+    } else {
+        // 未购买的车站，先显示购买按钮
+        if (player.money >= cell.price) {
+            const buyBtn = document.createElement('button');
+            buyBtn.className = 'btn primary';
+            buyBtn.textContent = `💰 购买车站 (${cell.price}元)`;
+            buyBtn.addEventListener('click', () => {
+                buyProperty(cell);
+                // 购买后再传送
+                setTimeout(() => {
+                    transportToCity(cell, player);
+                }, 500);
+            });
+            elements.cellActions.appendChild(buyBtn);
+            
+            showEvent('到达车站', `可选择购买该车站，购买后将自动传送`);
+        } else {
+            showEvent('到达车站', `免费传送！资金不足，无法购买该车站`);
+            transportToCity(cell, player);
+        }
+    }
+}
+
+// 传送到随机城市
+function transportToCity(cell, player) {
     // 随机选择一个城市格子（只选择属性为PROPERTY的格子）
     const cityCells = BOARD_CELLS.filter(c => c.type === CELL_TYPES.PROPERTY);
     const randomCity = cityCells[Math.floor(Math.random() * cityCells.length)];
     const targetIndex = BOARD_CELLS.findIndex(c => c.id === randomCity.id);
     
-    if (cell.owner !== undefined) {
-        if (cell.owner !== player.id) {
-            // 别人的车站，需要支付费用
-            // 计算距离：从当前车站到目标城市的距离
-            const currentStationIndex = BOARD_CELLS.findIndex(c => c.id === cell.id);
-            const distance = Math.abs(targetIndex - currentStationIndex);
-            const cost = distance * 100;
-            
-            player.money -= cost;
-            // 拥有者享受70%的收入
-            const ownerIncome = Math.floor(cost * 0.7);
-            gameState.players[cell.owner].money += ownerIncome;
-            
-            // 移动到目标城市
-            player.position = targetIndex;
-            
-            showEvent('乘坐车站', `支付${cost}元，前往${randomCity.name}！${gameState.players[cell.owner].icon}获得${ownerIncome}元`);
-        } else {
-            // 自己的车站，免费传送
-            player.position = targetIndex;
-            showEvent('乘坐自己的车站', `免费前往${randomCity.name}！`);
-        }
+    if (cell.owner !== undefined && cell.owner !== player.id) {
+        // 别人的车站，需要支付费用
+        // 计算距离：从当前车站到目标城市的距离
+        const currentStationIndex = BOARD_CELLS.findIndex(c => c.id === cell.id);
+        const distance = Math.abs(targetIndex - currentStationIndex);
+        const cost = distance * 100;
+        
+        player.money -= cost;
+        // 拥有者享受70%的收入
+        const ownerIncome = Math.floor(cost * 0.7);
+        gameState.players[cell.owner].money += ownerIncome;
+        
+        showEvent('乘坐车站', `支付${cost}元，前往${randomCity.name}！${gameState.players[cell.owner].icon}获得${ownerIncome}元`);
+    } else if (cell.owner === player.id) {
+        // 自己的车站，免费传送
+        showEvent('乘坐自己的车站', `免费前往${randomCity.name}！`);
     } else {
         // 未购买的车站，免费传送
-        player.position = targetIndex;
-        
-        if (player.money >= cell.price) {
-            const buyBtn = document.createElement('button');
-            buyBtn.className = 'btn primary';
-            buyBtn.textContent = `💰 购买车站 (${cell.price}元)`;
-            buyBtn.addEventListener('click', () => buyProperty(cell));
-            elements.cellActions.appendChild(buyBtn);
-            
-            showEvent('车站传送', `免费前往${randomCity.name}！可选择购买该车站`);
-        } else {
-            showEvent('车站传送', `免费前往${randomCity.name}！`);
-        }
+        showEvent('车站传送', `免费前往${randomCity.name}！`);
     }
     
+    // 移动到目标城市
+    player.position = targetIndex;
     updateUI();
     updateGridButtons();
 }
