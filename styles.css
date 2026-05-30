@@ -34,6 +34,10 @@ body {
     min-width: 0;
 }
 
+.left-panel.hidden {
+    display: none;
+}
+
 .right-panel {
     flex: 1;
     min-width: 320px;
@@ -47,9 +51,25 @@ body {
         flex-direction: column;
     }
     
+    /* 在手机上默认隐藏左侧棋盘，但可以通过按钮显示 */
+    .left-panel {
+        display: none;
+    }
+    
+    .left-panel:not(.hidden) {
+        display: block;
+    }
+    
     .right-panel {
         min-width: 100%;
+        flex: 1;
     }
+}
+
+/* 当左侧面板隐藏时，右侧面板占据全部宽度 */
+.right-panel.full-width {
+    flex: 1;
+    min-width: 100%;
 }
 
 .screen {
@@ -508,6 +528,48 @@ body {
     text-align: center;
     position: relative;
     z-index: 1;
+}
+
+.center-facilities {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    gap: 10px;
+}
+
+.facility {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 8px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border: 2px solid;
+    min-width: 70px;
+}
+
+.jail-facility {
+    border-color: #e74c3c;
+    background: linear-gradient(135deg, #ffcccc 0%, #ffe6e6 100%);
+}
+
+.hospital-facility {
+    border-color: #3498db;
+    background: linear-gradient(135deg, #cce5ff 0%, #e6f0ff 100%);
+}
+
+.facility-icon {
+    font-size: 28px;
+    line-height: 1;
+    margin-bottom: 5px;
+}
+
+.facility-name {
+    font-size: 12px;
+    font-weight: bold;
+    color: #2c3e50;
 }
 
 .center-title {

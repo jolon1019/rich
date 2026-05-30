@@ -44,12 +44,16 @@
                 <div class="turn-indicator" id="turn-indicator">
                     <span id="current-player-name">玩家1</span> 的回合
                 </div>
-                <button id="menu-btn" class="btn small">菜单</button>
+                <div style="display: flex; gap: 8px;">
+                    <button id="speech-btn" class="btn small" title="语音开关">🔊</button>
+                    <button id="toggle-board-btn" class="btn small" title="显示/隐藏棋盘">🎲</button>
+                    <button id="menu-btn" class="btn small">菜单</button>
+                </div>
             </div>
             
             <div class="game-layout">
                 <!-- 左侧：棋盘位置 -->
-                <div class="left-panel">
+                <div id="left-panel" class="left-panel">
                     <div class="position-area">
                         <h3>📍 棋盘位置</h3>
                         <div class="board-container">
@@ -58,8 +62,18 @@
                                 <div class="board-left" id="board-left"></div>
                                 <div class="board-center">
                                     <div class="center-decoration">
-                                        <div class="center-title">
-                                            <span style="font-size:42px;line-height:1;">🎲</span>
+                                        <div class="center-facilities">
+                                            <div class="facility jail-facility" id="jail-facility">
+                                                <div class="facility-icon">🛑</div>
+                                                <div class="facility-name">监狱</div>
+                                            </div>
+                                            <div class="center-title">
+                                                <span style="font-size:42px;line-height:1;">🎲</span>
+                                            </div>
+                                            <div class="facility hospital-facility" id="hospital-facility">
+                                                <div class="facility-icon">🏥</div>
+                                                <div class="facility-name">医院</div>
+                                            </div>
                                         </div>
                                         <div class="center-text">
                                             <div style="font-size:24px;font-weight:bold;color:#5d4e37;text-shadow:2px 2px 4px rgba(0,0,0,0.1);">大富翁</div>
@@ -76,7 +90,7 @@
                 </div>
                 
                 <!-- 右侧：游戏控制 -->
-                <div class="right-panel">
+                <div id="right-panel" class="right-panel">
                     <!-- 玩家状态栏 -->
                     <div class="players-status" id="players-status">
                     </div>
@@ -124,6 +138,18 @@
                 <h2 id="event-title">事件</h2>
                 <p id="event-description">描述</p>
                 <button id="event-confirm" class="btn primary">确定</button>
+            </div>
+        </div>
+        
+        <!-- 购买确认弹窗 -->
+        <div id="purchase-modal" class="modal">
+            <div class="modal-content">
+                <h2 id="purchase-title">购买地产</h2>
+                <p id="purchase-description">描述</p>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button id="purchase-confirm" class="btn primary">购买</button>
+                    <button id="purchase-cancel" class="btn">取消</button>
+                </div>
             </div>
         </div>
     </div>

@@ -117,6 +117,59 @@ const SoundManager = {
     }
 };
 
+// 语音管理器 - 使用 Web Speech API
+const SpeechManager = {
+    enabled: true,
+    synth: null,
+    voices: [],
+    chineseVoice: null,
+
+    init() {
+        this.synth = window.speechSynthesis;
+        if (this.synth) {
+            this.loadVoices();
+            this.synth.onvoiceschanged = () => this.loadVoices();
+            const saved = localStorage.getItem('richmanSpeechEnabled');
+            if (saved !== null) {
+                this.enabled = saved === 'true';
+            }
+        }
+    },
+
+    loadVoices() {
+        this.voices = this.synth.getVoices();
+        this.chineseVoice = this.voices.find(voice => 
+            voice.lang.includes('zh') || voice.lang.includes('CN')
+        ) || this.voices[0];
+    },
+
+    toggle() {
+        this.enabled = !this.enabled;
+        localStorage.setItem('richmanSpeechEnabled', this.enabled);
+        if (this.enabled) {
+            this.speak('语音已开启');
+        }
+        return this.enabled;
+    },
+
+    speak(text) {
+        if (!this.enabled || !this.synth) return;
+        
+        this.synth.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'zh-CN';
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        
+        if (this.chineseVoice) {
+            utterance.voice = this.chineseVoice;
+        }
+        
+        this.synth.speak(utterance);
+    }
+};
+
 // 游戏数据
 const CELL_TYPES = {
     START: 'start',
@@ -150,15 +203,15 @@ const BOARD_CELLS = [
     { id: 14, type: CELL_TYPES.PROPERTY, name: '宁波', price: 1800, rent: 160, color: '#f1c40f' },
     { id: 15, type: CELL_TYPES.STATION, name: '上海虹桥站', price: 2000, rent: 200 },
     { id: 16, type: CELL_TYPES.PROPERTY, name: '福州', price: 1800, rent: 160, color: '#2ecc71' },
-    { id: 17, type: CELL_TYPES.JAIL, name: '🛑监狱', description: '探监或服刑中' },
+    { id: 17, type: CELL_TYPES.PROPERTY, name: '🏢商业中心', price: 3000, rent: 300, color: '#95a5a6', isCommercial: true },
     { id: 18, type: CELL_TYPES.PROPERTY, name: '厦门', price: 2000, rent: 180, color: '#2ecc71' },
     { id: 19, type: CELL_TYPES.PROPERTY, name: '广州', price: 2200, rent: 200, color: '#2ecc71' },
     { id: 20, type: CELL_TYPES.STATION, name: '广州白云机场', price: 2000, rent: 200 },
     { id: 21, type: CELL_TYPES.PROPERTY, name: '深圳', price: 2200, rent: 200, color: '#9b59b6' },
     { id: 22, type: CELL_TYPES.PROPERTY, name: '珠海', price: 2400, rent: 220, color: '#9b59b6' },
-    { id: 23, type: CELL_TYPES.JAIL, name: '🏥医院', description: '休息一下~' },
-    { id: 24, type: CELL_TYPES.PROPERTY, name: '成都', price: 2600, rent: 240, color: '#9b59b6' },
-    { id: 25, type: CELL_TYPES.FREE_PARKING, name: '🅿️免费停车', description: '休息一下~' },
+    { id: 23, type: CELL_TYPES.PROPERTY, name: '成都', price: 2600, rent: 240, color: '#9b59b6' },
+    { id: 24, type: CELL_TYPES.FREE_PARKING, name: '🅿️免费停车', description: '休息一下~' },
+    { id: 25, type: CELL_TYPES.PROPERTY, name: '�购物中心', price: 3200, rent: 320, color: '#7f8c8d', isCommercial: true },
     { id: 26, type: CELL_TYPES.PROPERTY, name: '重庆', price: 2600, rent: 240, color: '#e67e22' },
     { id: 27, type: CELL_TYPES.PROPERTY, name: '西安', price: 2800, rent: 260, color: '#e67e22' },
     { id: 28, type: CELL_TYPES.UTILITY, name: '💧自来水厂', price: 1500, rent: 150 },
@@ -203,6 +256,9 @@ let gameState = {
     hasUpgradedThisTurn: false
 };
 
+// 当前要购买的格子
+let currentPurchaseCell = null;
+
 // DOM元素
 const elements = {
     startScreen: document.getElementById('start-screen'),
@@ -220,7 +276,13 @@ const elements = {
     menuModal: document.getElementById('menu-modal'),
     eventModal: document.getElementById('event-modal'),
     eventTitle: document.getElementById('event-title'),
-    eventDescription: document.getElementById('event-description')
+    eventDescription: document.getElementById('event-description'),
+    purchaseModal: document.getElementById('purchase-modal'),
+    purchaseTitle: document.getElementById('purchase-title'),
+    purchaseDescription: document.getElementById('purchase-description'),
+    toggleBoardBtn: document.getElementById('toggle-board-btn'),
+    leftPanel: document.getElementById('left-panel'),
+    rightPanel: document.getElementById('right-panel')
 };
 
 // 玩家默认名称
@@ -234,6 +296,14 @@ function init() {
     generatePlayerInputs(4);
     setupEventListeners();
     loadGame();
+    SpeechManager.init();
+    initBoardDisplay();
+    
+    // 初始化语音按钮状态
+    const speechBtn = document.getElementById('speech-btn');
+    if (speechBtn) {
+        speechBtn.textContent = SpeechManager.enabled ? '🔊' : '🔇';
+    }
 }
 
 // 设置玩家数量按钮
@@ -273,6 +343,42 @@ function setupEventListeners() {
     document.getElementById('save-game').addEventListener('click', saveGame);
     document.getElementById('restart-game').addEventListener('click', restartGame);
     document.getElementById('event-confirm').addEventListener('click', () => hideModal('event'));
+    
+    // 购买确认和取消按钮
+    document.getElementById('purchase-confirm').addEventListener('click', confirmPurchase);
+    document.getElementById('purchase-cancel').addEventListener('click', cancelPurchase);
+    
+    // 语音开关按钮
+    const speechBtn = document.getElementById('speech-btn');
+    speechBtn.addEventListener('click', () => {
+        const enabled = SpeechManager.toggle();
+        speechBtn.textContent = enabled ? '🔊' : '🔇';
+    });
+    
+    // 棋盘显示/隐藏开关
+    elements.toggleBoardBtn.addEventListener('click', toggleBoardDisplay);
+}
+
+// 切换棋盘显示/隐藏
+function toggleBoardDisplay() {
+    const isHidden = elements.leftPanel.classList.toggle('hidden');
+    elements.rightPanel.classList.toggle('full-width', isHidden);
+    elements.toggleBoardBtn.textContent = isHidden ? '🎯' : '🎲';
+    elements.toggleBoardBtn.title = isHidden ? '显示棋盘' : '隐藏棋盘';
+    
+    // 保存设置到localStorage
+    localStorage.setItem('boardHidden', isHidden.toString());
+}
+
+// 初始化棋盘显示状态
+function initBoardDisplay() {
+    const boardHidden = localStorage.getItem('boardHidden') === 'true';
+    if (boardHidden) {
+        elements.leftPanel.classList.add('hidden');
+        elements.rightPanel.classList.add('full-width');
+        elements.toggleBoardBtn.textContent = '🎯';
+        elements.toggleBoardBtn.title = '显示棋盘';
+    }
 }
 
 // 开始游戏
@@ -309,6 +415,9 @@ function startGame() {
     generateGridInput();
     updateUI();
     saveGame();
+    
+    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    SpeechManager.speak(`游戏开始！请${currentPlayer.name}，请摇骰子！`);
 }
 
 // 找到环形布局中的格子按钮
@@ -439,7 +548,13 @@ function buildCellContent(cell, index) {
     }
 
     if (cell.type === CELL_TYPES.PROPERTY && cell.buildingLevel > 0) {
-        const levelEmojis = ['', '🏠', '🏡', '🏘️', '🏢', '🏬', '🏰'];
+        // 根据地产类型选择不同的建筑图标
+        let levelEmojis;
+        if (cell.isCommercial) {
+            levelEmojis = ['', '🏪', '🏬', '🏢', '🏰', '🌆', '🌃'];
+        } else {
+            levelEmojis = ['', '🏠', '🏡', '🏘️', '🏢', '🏬', '🏰'];
+        }
         html += `<span class="building-icon">${levelEmojis[cell.buildingLevel]}</span>`;
     }
 
@@ -582,8 +697,16 @@ function showCellInfo(cellIndex) {
     if (cell.owner !== undefined) {
         const owner = gameState.players.find(p => p.id === cell.owner);
         if (owner) {
-            const levelEmojis = ['', '🏠', '🏡', '🏘️', '🏢', '🏬', '🏰'];
-            const levelNames = ['', '平房', '小洋楼', '联排别墅', '高层公寓', '商业大厦', '城堡'];
+            // 根据地产类型选择不同的等级显示
+            let levelEmojis, levelNames;
+            if (cell.isCommercial) {
+                levelEmojis = ['', '🏪', '🏬', '🏢', '🏰', '🌆', '🌃'];
+                levelNames = ['', '便利店', '购物中心', '商业大厦', '商业城堡', '商业都市', '商业王国'];
+            } else {
+                levelEmojis = ['', '🏠', '🏡', '🏘️', '🏢', '🏬', '🏰'];
+                levelNames = ['', '平房', '小洋楼', '联排别墅', '高层公寓', '商业大厦', '城堡'];
+            }
+            
             const level = cell.buildingLevel || 0;
             if (level > 0) {
                 const rent = calculateRent(cell);
@@ -674,6 +797,7 @@ function rollDice() {
         setDiceFaceDirect(diceValue);
         SoundManager.playDiceResult();
         gameState.diceRolled = true;
+        SpeechManager.speak(`${diceValue}点！`);
 
         const fromPos = player.position;
 
@@ -761,14 +885,6 @@ function handleCellEvent(cellIndex) {
             player.money += 2000;
             showEvent('到达起点', '获得2000元！');
             break;
-        case CELL_TYPES.JAIL:
-            // 路过监狱或医院不用进，只是休息
-            if (cell.name === '🛑监狱') {
-                showEvent('探监', '路过监狱，休息一下~');
-            } else {
-                showEvent('休息', '在医院休息一下~');
-            }
-            break;
         case CELL_TYPES.PROPERTY:
         case CELL_TYPES.STATION:
         case CELL_TYPES.UTILITY:
@@ -783,6 +899,9 @@ function handleCellEvent(cellIndex) {
         case CELL_TYPES.TAX:
             player.money -= 500;
             showEvent('缴税', '缴纳税金500元');
+            break;
+        case CELL_TYPES.JAIL:
+            // 这类型现在已经不在棋盘上了，但保留以防万一
             break;
     }
     
@@ -803,7 +922,7 @@ function handlePropertyCell(cell, player) {
             const rent = calculateRent(cell);
             player.money -= rent;
             gameState.players[cell.owner].money += rent;
-            showEvent('支付租金', `向${gameState.players[cell.owner].icon} ${gameState.players[cell.owner].name}支付${rent}元`);
+            showEvent('支付租金', `向${gameState.players[cell.owner].name}支付${rent}元`);
         } else {
             // 自己的地
             if (cell.newlyPurchased) {
@@ -832,8 +951,18 @@ function handlePropertyCell(cell, player) {
                 } else if (currentLevel < maxLevel && player.money >= upgradeCost) {
                     const upgradeBtn = document.createElement('button');
                     upgradeBtn.className = 'btn primary';
-                    const levelEmojis = ['🏠', '🏡', '🏘️', '🏢', '🏬', '🏰'];
-                    upgradeBtn.textContent = `${levelEmojis[currentLevel + 1]} 升级为${levelEmojis[currentLevel + 1]} (${upgradeCost}元)`;
+                    
+                    // 商业用地使用不同的升级图标和名称
+                    let levelEmojis, levelNames;
+                    if (cell.isCommercial) {
+                        levelEmojis = ['🏪', '🏬', '🏢', '🏰', '🌆', '🌃'];
+                        levelNames = ['便利店', '购物中心', '商业大厦', '商业城堡', '商业都市', '商业王国'];
+                    } else {
+                        levelEmojis = ['🏠', '🏡', '🏘️', '🏢', '🏬', '🏰'];
+                        levelNames = ['平房', '小洋楼', '联排别墅', '高层公寓', '商业大厦', '城堡'];
+                    }
+                    
+                    upgradeBtn.textContent = `${levelEmojis[currentLevel + 1]} 升级为${levelNames[currentLevel + 1]} (${upgradeCost}元)`;
                     upgradeBtn.addEventListener('click', () => buildHouse(cell));
                     elements.cellActions.appendChild(upgradeBtn);
                 } else if (currentLevel >= maxLevel) {
@@ -848,13 +977,10 @@ function handlePropertyCell(cell, player) {
             }
         }
     } else {
-        // 未购买的地，只有当前玩家能买
+        // 未购买的地
         if (player.money >= cell.price) {
-            const buyBtn = document.createElement('button');
-            buyBtn.className = 'btn primary';
-            buyBtn.textContent = `💰 购买 (${cell.price}元)`;
-            buyBtn.addEventListener('click', () => buyProperty(cell));
-            elements.cellActions.appendChild(buyBtn);
+            // 显示购买确认弹窗
+            showPurchaseModal(cell, player);
         } else {
             const infoDiv = document.createElement('div');
             infoDiv.style.padding = '10px';
@@ -873,21 +999,12 @@ function handleStationCell(cell, player) {
         // 已购买的车站，直接传送
         transportToCity(cell, player);
     } else {
-        // 未购买的车站，先显示购买按钮
+        // 未购买的车站
         if (player.money >= cell.price) {
-            const buyBtn = document.createElement('button');
-            buyBtn.className = 'btn primary';
-            buyBtn.textContent = `💰 购买车站 (${cell.price}元)`;
-            buyBtn.addEventListener('click', () => {
-                buyProperty(cell);
-                // 购买后再传送
-                setTimeout(() => {
-                    transportToCity(cell, player);
-                }, 500);
-            });
-            elements.cellActions.appendChild(buyBtn);
-            
-            showEvent('到达车站', `可选择购买该车站，购买后将自动传送`);
+            // 显示购买确认弹窗
+            showPurchaseModal(cell, player);
+            // 标记这是车站，购买后需要传送
+            cell.isStation = true;
         } else {
             showEvent('到达车站', `免费传送！资金不足，无法购买该车站`);
             transportToCity(cell, player);
@@ -944,12 +1061,27 @@ function buyProperty(cell) {
         cell.owner = player.id;
         cell.newlyPurchased = true; // 标记为新购买
         cell.buildingLevel = 0;
-        showEvent('购买成功', `${player.icon} 成功购买${cell.name}！下次经过可建房`);
-        updateCellDisplay(cell);
-        updateUI();
-        saveGame();
-        // 购买成功后自动结束回合
-        setTimeout(endTurn, 1500);
+        
+        // 如果是车站，购买后自动传送
+        if (cell.isStation || cell.type === CELL_TYPES.STATION) {
+            showEvent('购买成功', `${player.icon} 成功购买${cell.name}！`);
+            updateCellDisplay(cell);
+            updateUI();
+            saveGame();
+            // 清除车站标记
+            delete cell.isStation;
+            // 延迟传送
+            setTimeout(() => {
+                transportToCity(cell, player);
+            }, 1000);
+        } else {
+            showEvent('购买成功', `${player.icon} 成功购买${cell.name}！下次经过可建房`);
+            updateCellDisplay(cell);
+            updateUI();
+            saveGame();
+            // 购买成功后自动结束回合
+            setTimeout(endTurn, 1500);
+        }
     }
 }
 
@@ -964,8 +1096,17 @@ function buildHouse(cell) {
         player.money -= upgradeCost;
         cell.buildingLevel = currentLevel + 1;
         gameState.hasUpgradedThisTurn = true;
-        const levelEmojis = ['', '🏠', '🏡', '🏘️', '🏢', '🏬', '🏰'];
-        const levelNames = ['', '平房', '小洋楼', '联排别墅', '高层公寓', '商业大厦', '城堡'];
+        
+        // 根据地产类型选择不同的升级图标和名称
+        let levelEmojis, levelNames;
+        if (cell.isCommercial) {
+            levelEmojis = ['', '🏪', '🏬', '🏢', '🏰', '🌆', '🌃'];
+            levelNames = ['', '便利店', '购物中心', '商业大厦', '商业城堡', '商业都市', '商业王国'];
+        } else {
+            levelEmojis = ['', '🏠', '🏡', '🏘️', '🏢', '🏬', '🏰'];
+            levelNames = ['', '平房', '小洋楼', '联排别墅', '高层公寓', '商业大厦', '城堡'];
+        }
+        
         showEvent('升级成功', `${player.icon} 在${cell.name}建造了${levelNames[cell.buildingLevel]}${levelEmojis[cell.buildingLevel]}！`);
         updateCellDisplay(cell);
         updateUI();
@@ -981,8 +1122,16 @@ function updateCellDisplay(cell) {
     if (cell.owner !== undefined) {
         const owner = gameState.players.find(p => p.id === cell.owner);
         if (owner) {
-            const levelEmojis = ['', '🏠', '🏡', '🏘️', '🏢', '🏬', '🏰'];
-            const levelNames = ['', '平房', '小洋楼', '联排别墅', '高层公寓', '商业大厦', '城堡'];
+            // 根据地产类型选择不同的等级显示
+            let levelEmojis, levelNames;
+            if (cell.isCommercial) {
+                levelEmojis = ['', '🏪', '🏬', '🏢', '🏰', '🌆', '🌃'];
+                levelNames = ['', '便利店', '购物中心', '商业大厦', '商业城堡', '商业都市', '商业王国'];
+            } else {
+                levelEmojis = ['', '🏠', '🏡', '🏘️', '🏢', '🏬', '🏰'];
+                levelNames = ['', '平房', '小洋楼', '联排别墅', '高层公寓', '商业大厦', '城堡'];
+            }
+            
             const level = cell.buildingLevel || 0;
             if (level > 0) {
                 desc = `${levelEmojis[level]} 已被 ${owner.name} 拥有 (${levelNames[level]})`;
@@ -1100,6 +1249,8 @@ function endTurn() {
         // 延迟一下，让弹窗显示出来
         setTimeout(() => {
         }, 100);
+    } else {
+        SpeechManager.speak(`请${newPlayer.name}，请摇骰子！`);
     }
     
     checkBankruptcy();
@@ -1141,6 +1292,32 @@ function showEvent(title, description) {
     elements.eventTitle.textContent = title;
     elements.eventDescription.textContent = description;
     showModal('event');
+    SpeechManager.speak(description);
+}
+
+// 显示购买确认弹窗
+function showPurchaseModal(cell, player) {
+    currentPurchaseCell = cell;
+    elements.purchaseTitle.textContent = `购买 ${cell.name}`;
+    elements.purchaseDescription.textContent = `${player.icon} ${player.name}，是否花费 ${cell.price}元 购买这块地？`;
+    showModal('purchase');
+    SpeechManager.speak(`是否花费 ${cell.price}元 购买 ${cell.name}？`);
+}
+
+// 确认购买
+function confirmPurchase() {
+    if (!currentPurchaseCell) return;
+    
+    const player = gameState.players[gameState.currentPlayerIndex];
+    buyProperty(currentPurchaseCell);
+    hideModal('purchase');
+    currentPurchaseCell = null;
+}
+
+// 取消购买
+function cancelPurchase() {
+    hideModal('purchase');
+    currentPurchaseCell = null;
 }
 
 function showModal(type) {
@@ -1148,6 +1325,8 @@ function showModal(type) {
         elements.menuModal.classList.add('active');
     } else if (type === 'event') {
         elements.eventModal.classList.add('active');
+    } else if (type === 'purchase') {
+        elements.purchaseModal.classList.add('active');
     }
 }
 
@@ -1156,6 +1335,8 @@ function hideModal(type) {
         elements.menuModal.classList.remove('active');
     } else if (type === 'event') {
         elements.eventModal.classList.remove('active');
+    } else if (type === 'purchase') {
+        elements.purchaseModal.classList.remove('active');
     }
 }
 
