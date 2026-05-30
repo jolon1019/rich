@@ -123,6 +123,8 @@ const SpeechManager = {
     synth: null,
     voices: [],
     chineseVoice: null,
+    hasUserInteracted: false,
+    pendingSpeak: null,
 
     init() {
         this.synth = window.speechSynthesis;
@@ -134,12 +136,26 @@ const SpeechManager = {
                 this.enabled = saved === 'true';
             }
         }
+        
+        // 检测用户第一次交互
+        const setupUserInteraction = () => {
+            this.hasUserInteracted = true;
+            document.removeEventListener('click', setupUserInteraction);
+            document.removeEventListener('touchstart', setupUserInteraction);
+            // 如果有等待播放的语音，现在播放
+            if (this.pendingSpeak) {
+                this.speak(this.pendingSpeak);
+                this.pendingSpeak = null;
+            }
+        };
+        document.addEventListener('click', setupUserInteraction);
+        document.addEventListener('touchstart', setupUserInteraction);
     },
 
     loadVoices() {
         this.voices = this.synth.getVoices();
         this.chineseVoice = this.voices.find(voice => 
-            voice.lang.includes('zh') || voice.lang.includes('CN')
+            voice.lang && (voice.lang.includes('zh') || voice.lang.includes('CN'))
         ) || this.voices[0];
     },
 
@@ -155,18 +171,33 @@ const SpeechManager = {
     speak(text) {
         if (!this.enabled || !this.synth) return;
         
-        this.synth.cancel();
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'zh-CN';
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        
-        if (this.chineseVoice) {
-            utterance.voice = this.chineseVoice;
+        // 如果用户还没有交互，等待之后播放
+        if (!this.hasUserInteracted) {
+            this.pendingSpeak = text;
+            return;
         }
         
-        this.synth.speak(utterance);
+        try {
+            this.synth.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-CN';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            
+            // 错误处理
+            utterance.onerror = (event) => {
+                console.log('语音播放错误:', event);
+            };
+            
+            if (this.chineseVoice) {
+                utterance.voice = this.chineseVoice;
+            }
+            
+            this.synth.speak(utterance);
+        } catch (e) {
+            console.log('语音功能不可用:', e);
+        }
     }
 };
 
